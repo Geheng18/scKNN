@@ -85,7 +85,7 @@ NULL
 #' Individual kernel functions: \code{\link{getProduct}}, \code{\link{getGaussian}},
 #' \code{\link{getIbs}}, etc.
 #'
-#' @export
+#' @keywords internal
 findKernel = function(kernelName, geno, maf = NULL, weights = 1, constant = 1, deg = 2,sigma = 1,theta = 1)
 {
   switch(kernelName,
@@ -120,7 +120,7 @@ findKernel = function(kernelName, geno, maf = NULL, weights = 1, constant = 1, d
 #'
 #' @return Symmetric binary kernel matrix
 #'
-#' @export
+#' @keywords internal
 getDelta = function(geno) {
   if (!all(geno %in% c(0,1)))
     stop("getDelta: expects a binary one-hot matrix")
@@ -146,7 +146,7 @@ getDelta = function(geno) {
 #' For diploid organisms, genotypes are typically coded as 0, 1, 2 representing
 #' the number of alternative alleles.
 #'
-#' @export
+#' @keywords internal
 getIbs = function(geno,weights = 1)
 {
   n = nrow(geno)
@@ -184,7 +184,7 @@ getIbs = function(geno,weights = 1)
 #' correlation patterns in genomic data. It uses the empirical correlation
 #' structure to build a precision matrix.
 #'
-#' @export
+#' @keywords internal
 getCar = function(geno, maf, weights)
 {
   S=getIbs(geno,weights)/(2*sum(weights))
@@ -208,7 +208,7 @@ getCar = function(geno, maf, weights)
 #'
 #' @return Identity matrix
 #'
-#' @export
+#' @keywords internal
 getIdentity = function(geno)
 {
   n = nrow(geno)
@@ -231,7 +231,7 @@ getIdentity = function(geno)
 #' The product kernel is K(x,y) = <x,y> / (m * sum(weights)) where <x,y>
 #' is the inner product and m is the number of features.
 #'
-#' @export
+#' @keywords internal
 getProduct = function(geno, weights = 1)
 {
   m = ncol(geno)
@@ -250,7 +250,7 @@ getProduct = function(geno, weights = 1)
 #'
 #' @return Regularized product kernel matrix
 #'
-#' @export
+#' @keywords internal
 getProductIdentity = function(geno, weights = 1)
 {
   m = ncol(geno)
@@ -271,7 +271,7 @@ getProductIdentity = function(geno, weights = 1)
 #'
 #' @return Absolute product kernel matrix
 #'
-#' @export
+#' @keywords internal
 getAbsproduct = function(geno, weights = 1)
 {
   m = ncol(geno)
@@ -297,7 +297,7 @@ getAbsproduct = function(geno, weights = 1)
 #' The polynomial kernel is K(x,y) = (constant + <x,y>)^deg where <x,y>
 #' is the normalized inner product.
 #'
-#' @export
+#' @keywords internal
 getPolynomial = function(geno, weights =  1, constant = 1, deg =2)
 {
   m = ncol(geno)
@@ -321,7 +321,7 @@ getPolynomial = function(geno, weights =  1, constant = 1, deg =2)
 #' The Gaussian kernel is K(x,y) = exp(-||x-y||²/(2*m*sigma*sum(weights)))
 #' where ||x-y|| is the weighted Euclidean distance.
 #'
-#' @export
+#' @keywords internal
 getGaussian = function(geno, weights = 1, sigma = 1)
 {
   m = ncol(geno);
@@ -341,7 +341,7 @@ getGaussian = function(geno, weights = 1, sigma = 1)
 #'
 #' @return Sigmoid kernel matrix
 #'
-#' @export
+#' @keywords internal
 getSigmoid=function(geno,sigma=1)
 {
   K=getProduct(geno)
@@ -359,7 +359,7 @@ getSigmoid=function(geno,sigma=1)
 #'
 #' @return ReLU kernel matrix
 #'
-#' @export
+#' @keywords internal
 getRelu=function(geno)
 {
   K=getProduct(geno)
@@ -376,7 +376,7 @@ getRelu=function(geno)
 #'
 #' @return Exponential kernel matrix
 #'
-#' @export
+#' @keywords internal
 getExponential=function(geno)
 {
   K=getProduct(geno)
@@ -393,7 +393,7 @@ getExponential=function(geno)
 #'
 #' @return All-ones matrix
 #'
-#' @export
+#' @keywords internal
 getJ=function(geno)
 {
   n = nrow(geno)
@@ -410,7 +410,7 @@ getJ=function(geno)
 #'
 #' @return Diagonal kernel matrix
 #'
-#' @export
+#' @keywords internal
 getSqidentity=function(geno){
   K = getProduct(geno)
   K = diag(diag(K)^2)
@@ -426,7 +426,7 @@ getSqidentity=function(geno){
 #'
 #' @return Diagonal kernel matrix
 #'
-#' @export
+#' @keywords internal
 getFstidentity=function(geno){
   K = getProduct(geno)
   K = diag(diag(K))
@@ -443,7 +443,7 @@ getFstidentity=function(geno){
 #'
 #' @return RBF kernel matrix
 #'
-#' @export
+#' @keywords internal
 getRBF=function(geno,sigma=1){
   n = nrow(geno)
   sq_dist = as.matrix(dist(geno,method = 'euclidean'))^2
@@ -464,7 +464,7 @@ getRBF=function(geno,sigma=1){
 #' @details
 #' The spherical kernel measures angular similarity and is bounded between 0 and 1.
 #'
-#' @export
+#' @keywords internal
 getSP=function(geno,theta=1){
   num = getProduct(geno)
   row.norm = theta + apply(geno,1,L2.norm)

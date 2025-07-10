@@ -15,3 +15,4 @@ Identity matrix
 \description{
 Returns an identity matrix of appropriate dimensions.
 }
+\keyword{internal}

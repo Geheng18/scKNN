@@ -24,3 +24,4 @@ Captures local similarity patterns with exponential decay.
 The Gaussian kernel is K(x,y) = exp(-||x-y||²/(2\emph{m}sigma*sum(weights)))
 where ||x-y|| is the weighted Euclidean distance.
 }
+\keyword{internal}

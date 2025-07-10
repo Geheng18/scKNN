@@ -16,3 +16,4 @@ ReLU kernel matrix
 Applies rectified linear unit (ReLU) transformation to product kernel.
 Sets negative values to zero.
 }
+\keyword{internal}

@@ -22,3 +22,4 @@ Measures linear relationships between samples.
 The product kernel is K(x,y) = <x,y> / (m * sum(weights)) where <x,y>
 is the inner product and m is the number of features.
 }
+\keyword{internal}

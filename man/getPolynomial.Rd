@@ -26,3 +26,4 @@ polynomial relationships between samples.
 The polynomial kernel is K(x,y) = (constant + <x,y>)^deg where <x,y>
 is the normalized inner product.
 }
+\keyword{internal}

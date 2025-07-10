@@ -15,3 +15,4 @@ Diagonal kernel matrix
 \description{
 Diagonal kernel with squared diagonal elements from the product kernel.
 }
+\keyword{internal}

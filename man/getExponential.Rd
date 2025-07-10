@@ -15,3 +15,4 @@ Exponential kernel matrix
 \description{
 Applies exponential transformation to the product kernel.
 }
+\keyword{internal}

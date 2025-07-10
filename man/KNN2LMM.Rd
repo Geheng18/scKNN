@@ -26,6 +26,8 @@ The number of rows must equal the number of columns in \code{counts.mat}.}
 
 \item{gene.regions}{A list where each element is a character vector of gene names
 defining a gene region. If NULL (default), all genes are treated as one region.
+If a single gene is provided (length 1 character vector in a list element),
+feature vectors (mean, variance, skewness, etc.) are computed instead of pseudobulk.
 Example: list(c("Gene1", "Gene2"), c("Gene3", "Gene4", "Gene5"))}
 
 \item{input.kernel}{Character vector specifying kernel types. If gene.regions is
@@ -50,3 +52,4 @@ linear mixed models. This function performs pseudobulk aggregation by cell type
 and gene region, then constructs kernel matrices that can be used as variance
 components in downstream association analyses.
 }
+\keyword{internal}

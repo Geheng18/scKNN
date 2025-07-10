@@ -16,3 +16,4 @@ Symmetric binary kernel matrix
 Computes a kernel matrix for binary one-hot encoded data where the kernel
 value is 1 when two samples share the same "hot" bit (active category).
 }
+\keyword{internal}

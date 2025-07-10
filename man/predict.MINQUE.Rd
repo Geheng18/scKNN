@@ -73,3 +73,4 @@ pred <- predict.MINQUE(pheno.train, counts.combined, annotation.combined,
 }
 
 }
+\keyword{internal}

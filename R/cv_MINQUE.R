@@ -13,14 +13,14 @@
 #' @return A list of class "cv.MINQUE" containing cross-validation results
 #' @importFrom stats sd
 #' @export
-cv.MINQUE <- function(pheno.donor, counts.mat, annotation, gene.regions=NULL,
-                      lambda.seq = c(0, 0.01, 0.1, 1, 10, 100),
+cv.MINQUE <- function(pheno.donor, counts.mat, annotation, gene.regions = NULL,
+                      lambda.seq = c(0, 0.01, 0.1, 1),
                       n.folds = 5,
                       input.kernel = NULL,
                       MINQUE.type = 'MINQUE0',
                       method = 'KNN',
                       design.mat = NULL,
-                      criteria = c("MSE", "correlation", "R2"),
+                      criteria = c("MSE" ,"correlation", "R2"),
                       verbose = TRUE) {
 
   # Match criteria argument
@@ -75,9 +75,12 @@ cv.MINQUE <- function(pheno.donor, counts.mat, annotation, gene.regions=NULL,
     test.cells <- which(annotation$donor %in% test.donors)
     train.cells <- which(annotation$donor %in% train.donors)
 
-    # Split data
-    counts.train <- counts.mat[, train.cells]
+    # Split data - ADD drop = FALSE to preserve matrix structure
+    counts.train <- counts.mat[, train.cells, drop = FALSE]
     annotation.train <- annotation[train.cells, ]
+
+    # Drop unused levels from all factor columns
+    annotation.train <- droplevels(annotation.train)
 
     # Get phenotypes for train/test
     pheno.train <- pheno.donor[as.character(train.donors)]
@@ -97,53 +100,52 @@ cv.MINQUE <- function(pheno.donor, counts.mat, annotation, gene.regions=NULL,
     # Test each lambda value
     for (i in 1:n.lambda) {
       lambda <- lambda.seq[i]
+      # Fit model on training data
+      fit <- MINQUE(pheno.train, counts.train, annotation.train, gene.regions = gene.regions,
+                    input.kernel = input.kernel,
+                    MINQUE.type = MINQUE.type,
+                    method = method,
+                    lambda = lambda,
+                    design.mat = design.train,
+                    constrain = FALSE)
 
-      tryCatch({
-        # Fit model on training data
-        fit <- MINQUE(pheno.train, counts.train, annotation.train, gene.regions = gene.regions,
-                      input.kernel = input.kernel,
-                      MINQUE.type = MINQUE.type,
-                      method = method,
-                      lambda = lambda,
-                      design.mat = design.train,
-                      constrain = FALSE)
+      # Predict on test data using combined data
+      pred <- predict.MINQUE(y = pheno.train,
+                             counts.mat = counts.mat,  # Full data
+                             annotation = annotation,   # Full annotation
+                             gene.regions = gene.regions,
+                             input.kernel = input.kernel,
+                             theta = fit$theta,
+                             method = method,
+                             beta = fit$beta,
+                             design.mat.train = design.train,
+                             design.mat.test = design.test,
+                             train.donors = train.donors,
+                             test.donors = test.donors)
 
-        # Predict on test data using combined data
-        # Need to provide combined data for covariance calculation
-        pred <- predict.MINQUE(y = pheno.train,
-                               counts.mat = counts.mat,  # Full data
-                               annotation = annotation,   # Full annotation
-                               gene.regions = gene.regions,
-                               input.kernel = input.kernel,
-                               theta = fit$theta,
-                               method = method,
-                               beta = fit$beta,
-                               design.mat.train = design.train,
-                               design.mat.test = design.test,
-                               train.donors = train.donors,
-                               test.donors = test.donors)
-
-        # Calculate error based on criteria
-        if (criteria == "MSE") {
-          fold.errors[fold, i] <- mean((pheno.test - pred)^2)
-        } else if (criteria == "correlation") {
-          fold.errors[fold, i] <- -cor(pheno.test, pred)  # Negative for minimization
-        } else if (criteria == "R2") {
-          ss.res <- sum((pheno.test - pred)^2)
-          ss.tot <- sum((pheno.test - mean(pheno.test))^2)
-          fold.errors[fold, i] <- -(1 - ss.res/ss.tot)  # Negative for minimization
-        }
-
-      }, error = function(e) {
-        warning(paste("Error in fold", fold, "lambda", lambda, ":", e$message))
-        fold.errors[fold, i] <- NA
-      })
+      # Calculate error based on criteria
+      if (criteria == "MSE") {
+        fold.errors[fold, i] <- mean((pheno.test - pred)^2)
+      } else if (criteria == "correlation") {
+        fold.errors[fold, i] <- -cor(pheno.test, pred)  # Negative for minimization
+      } else if (criteria == "R2") {
+        ss.res <- sum((pheno.test - pred)^2)
+        ss.tot <- sum((pheno.test - mean(pheno.test))^2)
+        fold.errors[fold, i] <- -(1 - ss.res/ss.tot)  # Negative for minimization
+      }
     }
   }
 
   # Calculate mean and SE across folds
   cv.errors <- colMeans(fold.errors, na.rm = TRUE)
   cv.se <- apply(fold.errors, 2, sd, na.rm = TRUE) / sqrt(n.folds)
+  if (criteria == "MSE") {
+    cv.errors.report = cv.errors
+  } else if (criteria == "correlation") {
+    cv.errors.report = -cv.errors
+  } else if (criteria == "R2") {
+    cv.errors.report = -cv.errors
+  }
 
   # Find optimal lambda
   index.min <- which.min(cv.errors)
@@ -172,6 +174,9 @@ cv.MINQUE <- function(pheno.donor, counts.mat, annotation, gene.regions=NULL,
 
   if (verbose) {
     cat("\nCross-validation complete.\n")
+    cat("Using criteria",criteria,"\n")
+    cat("Cross-validation error:\n")
+    cat(cv.errors.report,'\n')
     cat("Optimal lambda (min):", lambda.min, "\n")
     cat("Optimal lambda (1se):", lambda.1se, "\n")
   }

@@ -17,3 +17,4 @@ Absolute product kernel matrix
 \description{
 Product kernel using squared features, emphasizing magnitude relationships.
 }
+\keyword{internal}

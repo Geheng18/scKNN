@@ -17,6 +17,8 @@
 #'   The number of rows must equal the number of columns in \code{counts.mat}.
 #' @param gene.regions A list where each element is a character vector of gene names
 #'   defining a gene region. If NULL (default), all genes are treated as one region.
+#'   If a single gene is provided (length 1 character vector in a list element),
+#'   feature vectors (mean, variance, skewness, etc.) are computed instead of pseudobulk.
 #'   Example: list(c("Gene1", "Gene2"), c("Gene3", "Gene4", "Gene5"))
 #' @param input.kernel Character vector specifying kernel types. If gene.regions is
 #'   provided, length should equal length(gene.regions) * n_celltypes. Otherwise,
@@ -31,9 +33,9 @@
 #' @return A list of variance component matrices. The order of components (after
 #'   the identity matrix) follows: celltype1_region1, celltype1_region2, ...,
 #'   celltype2_region1, celltype2_region2, etc.
-#'
-#' @export
-KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL,input.kernel = NULL, method = 'KNN') {
+#' @importFrom stats var median IQR p.adjust ppoints
+#' @keywords internal
+KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL, input.kernel = NULL, method = 'KNN') {
 
   # Input validation
   if (!is.matrix(counts.mat)) {
@@ -55,23 +57,17 @@ KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL,input.kernel = N
   # Handle gene regions
   all.genes <- rownames(counts.mat)
   if (is.null(gene.regions)) {
-    # If no gene regions specified, use all genes as one region
     gene.regions <- list(all.genes)
   } else {
-    # Validate gene regions
     if (!is.list(gene.regions)) {
       stop("gene.regions must be a list of character vectors")
     }
-
-    # Check that all specified genes exist in counts.mat
     all.region.genes <- unlist(gene.regions)
     missing.genes <- setdiff(all.region.genes, all.genes)
     if (length(missing.genes) > 0) {
       stop(paste("The following genes in gene.regions are not in counts.mat:",
                  paste(missing.genes, collapse = ", ")))
     }
-
-    # Check for overlapping genes
     if (length(all.region.genes) != length(unique(all.region.genes))) {
       stop("Gene regions contain overlapping genes. Each gene should appear in only one region.")
     }
@@ -85,48 +81,91 @@ KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL,input.kernel = N
   n.regions <- length(gene.regions)
 
   # Initialize list to store pseudobulk matrices
-  # Will store as: celltype1_region1, celltype1_region2, ..., celltype2_region1, ...
   pseudobulk.list <- list()
   component.names <- character()
 
   # Process each cell type and gene region combination
   for (ct in cell.types) {
     for (r in 1:n.regions) {
-      # Get genes for this region
       region.genes <- gene.regions[[r]]
       n.genes.region <- length(region.genes)
 
-      # Initialize pseudobulk matrix for this cell type and region
-      pseudobulk.mat <- matrix(0, nrow = n.donors, ncol = n.genes.region,
-                               dimnames = list(donors, region.genes))
+      if (n.genes.region == 1) {
+        # Single gene: compute feature vectors
+        gene.name <- region.genes[1]
+        n.features <- 6
+        feature.names <- c("mean", "var", "skew", "kurt", "median", "IQR")
 
-      # Process each donor
-      for (i in 1:n.donors) {
-        donor <- donors[i]
-        # Get indices of cells for this donor and cell type
-        cell.idx <- which(annotation$donor == donor & annotation$cell.type == ct)
+        feature.mat <- matrix(0, nrow = n.donors, ncol = n.features,
+                              dimnames = list(donors, feature.names))
 
-        if (length(cell.idx) > 0) {
-          # Extract counts for the specific genes in this region
-          region.counts <- counts.mat[region.genes, cell.idx, drop = FALSE]
+        for (i in 1:n.donors) {
+          donor <- donors[i]
+          cell.idx <- which(annotation$donor == donor & annotation$cell.type == ct)
 
-          # Calculate mean expression across cells
-          if (length(cell.idx) == 1) {
-            pseudobulk.mat[i,] <- region.counts
-          } else {
-            pseudobulk.mat[i,] <- rowMeans(region.counts)
+          if (length(cell.idx) > 0) {
+            gene.counts <- counts.mat[gene.name, cell.idx]
+
+            if (length(gene.counts) >= 2) {
+              feature.mat[i, "mean"] <- mean(gene.counts)
+              feature.mat[i, "var"] <- var(gene.counts)
+              feature.mat[i, "skew"] <- skewness(gene.counts)
+              feature.mat[i, "kurt"] <- kurtosis(gene.counts)
+              feature.mat[i, "median"] <- median(gene.counts)
+              feature.mat[i, "IQR"] <- IQR(gene.counts)
+            } else if (length(gene.counts) == 1) {
+              feature.mat[i, "mean"] <- gene.counts
+              feature.mat[i, "var"] <- 0
+              feature.mat[i, "skew"] <- 0
+              feature.mat[i, "kurt"] <- 0
+              feature.mat[i, "median"] <- gene.counts
+              feature.mat[i, "IQR"] <- 0
+            }
           }
         }
-      }
 
-      # Log transform and scale
-      pseudobulk.mat <- log2(pseudobulk.mat + 1)
-      pseudobulk.mat <- scale(pseudobulk.mat, center = TRUE, scale = TRUE)
+        # Log transform and scale features
+        feature.mat[, c("mean", "var", "median", "IQR")] <-
+          log2(feature.mat[, c("mean", "var", "median", "IQR")] + 1)
+        feature.mat <- scale(feature.mat, center = TRUE, scale = TRUE)
 
-      # Handle genes with zero variance
-      zero.var <- which(is.na(pseudobulk.mat[1,]))
-      if (length(zero.var) > 0) {
-        pseudobulk.mat[, zero.var] <- 0
+        # Handle features with zero variance
+        zero.var <- which(is.na(feature.mat[1,]))
+        if (length(zero.var) > 0) {
+          feature.mat[, zero.var] <- 0
+        }
+
+        pseudobulk.mat <- feature.mat
+
+      } else {
+        # Multiple genes: use original pseudobulk approach
+        pseudobulk.mat <- matrix(0, nrow = n.donors, ncol = n.genes.region,
+                                 dimnames = list(donors, region.genes))
+
+        for (i in 1:n.donors) {
+          donor <- donors[i]
+          cell.idx <- which(annotation$donor == donor & annotation$cell.type == ct)
+
+          if (length(cell.idx) > 0) {
+            region.counts <- counts.mat[region.genes, cell.idx, drop = FALSE]
+
+            if (length(cell.idx) == 1) {
+              pseudobulk.mat[i,] <- region.counts
+            } else {
+              pseudobulk.mat[i,] <- rowMeans(region.counts)
+            }
+          }
+        }
+
+        # Log transform and scale
+        pseudobulk.mat <- log2(pseudobulk.mat + 1)
+        pseudobulk.mat <- scale(pseudobulk.mat, center = TRUE, scale = TRUE)
+
+        # Handle genes with zero variance
+        zero.var <- which(is.na(pseudobulk.mat[1,]))
+        if (length(zero.var) > 0) {
+          pseudobulk.mat[, zero.var] <- 0
+        }
       }
 
       # Add to list with descriptive name
@@ -154,49 +193,120 @@ KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL,input.kernel = N
     kernel.matrix <- c(kernel.matrix, list(km.temp))
   }
 
-  # Add names to kernel matrices for clarity
   names(kernel.matrix) <- component.names
 
   # Construct variance components
-  I <- list(diag(1, n.donors, n.donors))
-  J <- list(matrix(1, n.donors, n.donors))
+  I <- diag(1, n.donors, n.donors)
+  J <- matrix(1, n.donors, n.donors)
 
-  # variance.component = [J, all raw kernels]
-  variance.component <- c(J, kernel.matrix)
-
-  # Final list to collect every variance component
+  variance.component <- c(list(J), kernel.matrix)
   variance.component.list <- list()
-  L <- length(kernel.matrix)  # number of "raw" kernels
+  L <- length(kernel.matrix)
 
   if (method == 'LMM') {
-    variance.component.list <- c(I, kernel.matrix)
+    variance.component.list <- list(Identity = I)
+    # Add first-order kernel matrices with names
+    for (i in 1:L) {
+      variance.component.list[[component.names[i]]] <- kernel.matrix[[i]]
+    }
   } else if (method == 'KNN') {
+    # Identity and Intercept
+    variance.component.list <- list(Identity = I, Intercept = J)
+
     # First order terms
-    variance.component.list <- c(I, variance.component)
+    for (i in 1:L) {
+      variance.component.list[[component.names[i]]] <- kernel.matrix[[i]]
+    }
 
     # Second order terms (squared kernels)
-    for (i in 2:(L+1)) {
-      variance.component.temp <- list(variance.component[[i]]^2)
-      variance.component.list <- c(variance.component.list, variance.component.temp)
+    for (i in 1:L) {
+      name <- paste0(component.names[i], "^2")
+      variance.component.list[[name]] <- kernel.matrix[[i]]^2
     }
 
     # Interaction terms
     if (L > 1) {
-      for (i in 2:(L+1)) {
-        if (i < L+1) {
-          for (j in (i+1):(L+1)) {
-            variance.component.temp <- list(variance.component[[i]] * variance.component[[j]])
-            variance.component.list <- c(variance.component.list, variance.component.temp)
-          }
+      for (i in 1:(L-1)) {
+        for (j in (i+1):L) {
+          name <- paste0(component.names[i], " X ", component.names[j])
+          variance.component.list[[name]] <- kernel.matrix[[i]] * kernel.matrix[[j]]
         }
       }
     }
   }
 
   # Add component information as an attribute for reference
-  attr(variance.component.list, "component.names") <- c("Identity", "Intercept", component.names)
+  if (method == 'KNN') {
+    # For KNN: I (1), J (1), first-order (L), second-order (L), interactions (choose(L, 2))
+    n.total.components <- 2 + L + L + choose(L, 2)
+
+    # Build component info
+    component.info <- data.frame(
+      index = 1:n.total.components,
+      type = c("Identity", "Intercept",
+               rep("First-order", L),
+               rep("Second-order", L),
+               rep("Interaction", choose(L, 2))),
+      name = character(n.total.components),
+      stringsAsFactors = FALSE
+    )
+
+    # Set names for Identity, Intercept, and first-order components
+    component.info$name[1:(2 + L)] <- c("Identity", "Intercept", component.names)
+
+    # Add second-order names (squared terms)
+    component.info$name[(3 + L):(2 + 2*L)] <- paste0(component.names, "^2")
+
+    # Add interaction names
+    if (L > 1) {
+      int.idx <- 3 + 2*L
+      for (i in 1:(L-1)) {
+        for (j in (i+1):L) {
+          component.info$name[int.idx] <- paste0(component.names[i], " X ", component.names[j])
+          int.idx <- int.idx + 1
+        }
+      }
+    }
+
+    attr(variance.component.list, "component.info") <- component.info
+
+  } else { # LMM
+    # For LMM: I (1), first-order (L)
+    n.total.components <- 1 + L
+
+    component.info <- data.frame(
+      index = 1:n.total.components,
+      type = c("Identity", rep("First-order", L)),
+      name = c("Identity", component.names),
+      stringsAsFactors = FALSE
+    )
+
+    attr(variance.component.list, "component.info") <- component.info
+  }
+
+  # Keep the other attributes
+  attr(variance.component.list, "component.names") <- component.info$name
   attr(variance.component.list, "n.celltypes") <- n.celltypes
   attr(variance.component.list, "n.regions") <- n.regions
 
   return(variance.component.list)
+}
+
+# Helper functions for feature computation
+skewness <- function(x) {
+  n <- length(x)
+  if (n < 3) return(0)
+  m <- mean(x)
+  s <- sd(x)
+  if (s == 0) return(0)
+  sum((x - m)^3) / (n * s^3)
+}
+
+kurtosis <- function(x) {
+  n <- length(x)
+  if (n < 4) return(0)
+  m <- mean(x)
+  s <- sd(x)
+  if (s == 0) return(0)
+  sum((x - m)^4) / (n * s^4) - 3
 }

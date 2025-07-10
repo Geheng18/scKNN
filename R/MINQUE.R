@@ -117,8 +117,8 @@
 #' @importFrom Matrix nearPD
 #' @export
 MINQUE <- function(pheno.donor, counts.mat, annotation, gene.regions = NULL,
-                   input.kernel = NULL,MINQUE.type = 'MINQUE0', method = 'KNN',
-                   lambda = 0,weight = NULL, design.mat = NULL, constrain = FALSE,
+                   input.kernel = NULL, MINQUE.type = 'MINQUE0', method = 'KNN',
+                   lambda = 0, weight = NULL, design.mat = NULL, constrain = FALSE,
                    variance.component.list = NULL) {
 
   # Input validation

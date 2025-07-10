@@ -17,3 +17,4 @@ Regularized product kernel matrix
 \description{
 Product kernel with added identity regularization to ensure positive definiteness.
 }
+\keyword{internal}

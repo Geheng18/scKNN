@@ -17,3 +17,4 @@ Sigmoid kernel matrix
 \description{
 Applies hyperbolic tangent transformation to the product kernel.
 }
+\keyword{internal}

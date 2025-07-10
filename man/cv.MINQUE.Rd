@@ -9,7 +9,7 @@ cv.MINQUE(
   counts.mat,
   annotation,
   gene.regions = NULL,
-  lambda.seq = c(0, 0.01, 0.1, 1, 10, 100),
+  lambda.seq = c(0, 0.01, 0.1, 1),
   n.folds = 5,
   input.kernel = NULL,
   MINQUE.type = "MINQUE0",

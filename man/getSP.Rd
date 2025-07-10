@@ -20,3 +20,4 @@ Computes spherical kernel based on angular similarity between vectors.
 \details{
 The spherical kernel measures angular similarity and is bounded between 0 and 1.
 }
+\keyword{internal}

@@ -15,3 +15,4 @@ All-ones matrix
 \description{
 Returns a matrix of all ones, representing a constant intercept term.
 }
+\keyword{internal}

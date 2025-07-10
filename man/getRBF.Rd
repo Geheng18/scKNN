@@ -17,3 +17,4 @@ RBF kernel matrix
 \description{
 Alternative implementation of RBF kernel using direct Euclidean distances.
 }
+\keyword{internal}

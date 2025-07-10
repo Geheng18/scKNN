@@ -23,3 +23,4 @@ The IBS kernel counts the number of shared alleles between individuals.
 For diploid organisms, genotypes are typically coded as 0, 1, 2 representing
 the number of alternative alleles.
 }
+\keyword{internal}

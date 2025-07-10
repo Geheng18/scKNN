@@ -68,3 +68,4 @@ K4 <- findKernel("identity", geno)
 Individual kernel functions: \code{\link{getProduct}}, \code{\link{getGaussian}},
 \code{\link{getIbs}}, etc.
 }
+\keyword{internal}

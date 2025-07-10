@@ -26,3 +26,4 @@ The CAR kernel is designed to account for population structure and
 correlation patterns in genomic data. It uses the empirical correlation
 structure to build a precision matrix.
 }
+\keyword{internal}
