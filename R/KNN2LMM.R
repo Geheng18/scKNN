@@ -158,7 +158,7 @@ KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL, input.kernel = 
         }
 
         # Log transform and scale
-        pseudobulk.mat <- log2(pseudobulk.mat + 1)
+        # pseudobulk.mat <- log2(pseudobulk.mat + 1)
         pseudobulk.mat <- scale(pseudobulk.mat, center = TRUE, scale = TRUE)
 
         # Handle genes with zero variance
