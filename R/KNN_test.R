@@ -113,8 +113,8 @@ KNN.overall.test <- function(pheno.donor, counts.mat, annotation, test.ind, gene
   # Remove very small eigenvalues for numerical stability
   eigenvalue <- eigenvalue[abs(eigenvalue) > 1e-10]
 
-  pvalue <- davies(q = 0, lambda = eigenvalue)$Qq
-
+  pvalue <- davies(q = 0, lambda = eigenvalue,acc = 1e-20)$Qq
+  
   return(list(pvalue = pvalue))
 }
 
@@ -250,7 +250,7 @@ KNN.ind.test <- function(pheno.donor, counts.mat, annotation, test.ind, gene.reg
   # Remove very small eigenvalues for numerical stability
   eigenvalue <- eigenvalue[abs(eigenvalue) > 1e-10]
 
-  pvalue <- davies(q = theta.full[test.ind], lambda = eigenvalue)$Qq
+  pvalue <- davies(q = theta.full[test.ind], lambda = eigenvalue, acc = 1e-20)$Qq
 
   return(list(pvalue = pvalue))
 }
