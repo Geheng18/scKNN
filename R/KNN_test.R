@@ -111,7 +111,7 @@ KNN.overall.test <- function(pheno.donor, counts.mat, annotation, test.ind, gene
   eigenvalue <- eigen(sigma.total, symmetric = TRUE, only.values = TRUE)$values
 
   # Remove very small eigenvalues for numerical stability
-  eigenvalue <- eigenvalue[eigenvalue > 1e-15]
+  # eigenvalue <- eigenvalue[eigenvalue > 1e-15]
 
   pvalue <- tryCatch({
     davies(q = 0, lambda = eigenvalue)$Qq
@@ -253,7 +253,7 @@ KNN.ind.test <- function(pheno.donor, counts.mat, annotation, test.ind, gene.reg
   eigenvalue <- eigen(sigmaH, symmetric = TRUE, only.values = TRUE)$values
 
   # Remove very small eigenvalues for numerical stability
-  eigenvalue <- eigenvalue[eigenvalue > 1e-15]
+  # eigenvalue <- eigenvalue[eigenvalue > 1e-15]
 
   pvalue <- tryCatch({
     davies(q = theta.full[test.ind], lambda = eigenvalue)$Qq
