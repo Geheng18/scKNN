@@ -86,89 +86,122 @@ KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL, input.kernel = 
 
   # Process each cell type and gene region combination
   for (ct in cell.types) {
-    for (r in 1:n.regions) {
+    for (r in seq_len(n.regions)) {
+  
       region.genes <- gene.regions[[r]]
       n.genes.region <- length(region.genes)
-
+  
+      ## donors x (features or genes)
       if (n.genes.region == 1) {
-        # Single gene: compute feature vectors
+  
+        # ---- Single gene: make "mean" consistent with multi-gene branch ----
+        # Here "mean" := logCPM of the pseudobulk SUM for this gene using a donor-level
+        # library size from ALL genes within (donor, celltype).
         gene.name <- region.genes[1]
-        n.features <- 6
-        feature.names <- c("mean", "var", "skew", "kurt", "median", "IQR")
-
+  
+        # feature set stays the same; only "mean" is redefined
+        feature.names <- c("mean","var","skew","kurt","median","IQR","pct_expr","mean_nz")
+        n.features <- length(feature.names)
+  
         feature.mat <- matrix(0, nrow = n.donors, ncol = n.features,
                               dimnames = list(donors, feature.names))
-
-        for (i in 1:n.donors) {
+  
+        # keep cell counts for reliability weighting
+        cell.n.vec <- integer(n.donors); names(cell.n.vec) <- donors
+  
+        # precompute donor-level library size for this cell type using ALL genes
+        lib.size <- numeric(n.donors); names(lib.size) <- donors
+  
+        for (i in seq_len(n.donors)) {
           donor <- donors[i]
           cell.idx <- which(annotation$donor == donor & annotation$cell.type == ct)
-
+          cell.n.vec[i] <- length(cell.idx)
+  
           if (length(cell.idx) > 0) {
-            gene.counts <- counts.mat[gene.name, cell.idx]
-
+            # ALL-gene library size within this donor x celltype
+            lib.size[i] <- sum(counts.mat[, cell.idx, drop = FALSE])
+  
+            # per-cell gene counts
+            gene.counts <- as.numeric(counts.mat[gene.name, cell.idx])
+  
+            # ---- mean: logCPM of SUM counts (consistent with multi-gene) ----
+            gene.sum <- sum(gene.counts)
+            feature.mat[i, "mean"] <- log2((gene.sum / (lib.size[i] + 1e-8)) * 1e6 + 1)
+  
+            # other features still computed on the per-cell distribution (raw counts)
+            feature.mat[i, "median"] <- median(gene.counts)
+            feature.mat[i, "IQR"]    <- IQR(gene.counts)
+  
             if (length(gene.counts) >= 2) {
-              feature.mat[i, "mean"] <- mean(gene.counts)
-              feature.mat[i, "var"] <- var(gene.counts)
+              feature.mat[i, "var"]  <- var(gene.counts)
               feature.mat[i, "skew"] <- skewness(gene.counts)
               feature.mat[i, "kurt"] <- kurtosis(gene.counts)
-              feature.mat[i, "median"] <- median(gene.counts)
-              feature.mat[i, "IQR"] <- IQR(gene.counts)
-            } else if (length(gene.counts) == 1) {
-              feature.mat[i, "mean"] <- gene.counts
-              feature.mat[i, "var"] <- 0
-              feature.mat[i, "skew"] <- 0
-              feature.mat[i, "kurt"] <- 0
-              feature.mat[i, "median"] <- gene.counts
-              feature.mat[i, "IQR"] <- 0
+            } else {
+              feature.mat[i, c("var","skew","kurt")] <- 0
             }
+  
+            feature.mat[i, "pct_expr"] <- mean(gene.counts > 0)
+            feature.mat[i, "mean_nz"]  <- if (any(gene.counts > 0)) mean(gene.counts[gene.counts > 0]) else 0
+          } else {
+            lib.size[i] <- 0
           }
         }
-
-        # Log transform and scale features
-        feature.mat[, c("mean", "var", "median", "IQR")] <-
-          log2(feature.mat[, c("mean", "var", "median", "IQR")] + 1)
+  
+        # transform positive-valued features (EXCEPT "mean" which is already logCPM)
+        feature.mat[, c("var","median","IQR","mean_nz")] <-
+          log2(feature.mat[, c("var","median","IQR","mean_nz")] + 1)
+  
+        # standardize
         feature.mat <- scale(feature.mat, center = TRUE, scale = TRUE)
-
-        # Handle features with zero variance
-        zero.var <- which(is.na(feature.mat[1,]))
-        if (length(zero.var) > 0) {
-          feature.mat[, zero.var] <- 0
-        }
-
+        feature.mat[is.na(feature.mat)] <- 0
+  
+        # reliability weighting by #cells
+        w <- sqrt(pmax(cell.n.vec, 1))
+        feature.mat <- feature.mat * w
+  
         pseudobulk.mat <- feature.mat
-
+  
       } else {
-        # Multiple genes: use original pseudobulk approach
+  
+        # ---- Multi-gene region: pseudobulk by SUM, then logCPM ----
         pseudobulk.mat <- matrix(0, nrow = n.donors, ncol = n.genes.region,
                                  dimnames = list(donors, region.genes))
-
-        for (i in 1:n.donors) {
+  
+        cell.n.vec <- integer(n.donors); names(cell.n.vec) <- donors
+  
+        # IMPORTANT: compute library size from ALL genes within (donor, celltype),
+        # not just within this region (more correct CPM/size-factor notion).
+        lib.size <- numeric(n.donors); names(lib.size) <- donors
+  
+        for (i in seq_len(n.donors)) {
           donor <- donors[i]
           cell.idx <- which(annotation$donor == donor & annotation$cell.type == ct)
-
+          cell.n.vec[i] <- length(cell.idx)
+  
           if (length(cell.idx) > 0) {
             region.counts <- counts.mat[region.genes, cell.idx, drop = FALSE]
-
-            if (length(cell.idx) == 1) {
-              pseudobulk.mat[i,] <- region.counts
-            } else {
-              pseudobulk.mat[i,] <- rowMeans(region.counts)
-            }
+            pseudobulk.mat[i, ] <- rowSums(region.counts)
+  
+            lib.size[i] <- sum(counts.mat[, cell.idx, drop = FALSE])
+          } else {
+            lib.size[i] <- 0
           }
         }
-
-        # Log transform and scale
-        # pseudobulk.mat <- log2(pseudobulk.mat + 1)
+  
+        # logCPM normalization (library size from ALL genes in this donor x celltype)
+        lib.size <- lib.size + 1e-8
+        pseudobulk.mat <- log2(sweep(pseudobulk.mat, 1, lib.size, "/") * 1e6 + 1)
+  
+        # standardize genes
         pseudobulk.mat <- scale(pseudobulk.mat, center = TRUE, scale = TRUE)
-
-        # Handle genes with zero variance
-        zero.var <- which(is.na(pseudobulk.mat[1,]))
-        if (length(zero.var) > 0) {
-          pseudobulk.mat[, zero.var] <- 0
-        }
+        pseudobulk.mat[is.na(pseudobulk.mat)] <- 0
+  
+        # reliability weighting by #cells
+        w <- sqrt(pmax(cell.n.vec, 1))
+        pseudobulk.mat <- pseudobulk.mat * w
       }
-
-      # Add to list with descriptive name
+  
+      # ---- store ----
       component.name <- paste0(ct, "_region", r)
       pseudobulk.list[[component.name]] <- pseudobulk.mat
       component.names <- c(component.names, component.name)
