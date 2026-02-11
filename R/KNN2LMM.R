@@ -152,15 +152,11 @@ KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL, input.kernel = 
               feature.mat[i, "var"]    <- var(gene_logcpm)
               feature.mat[i, "skew"]   <- skewness(gene_logcpm)
               feature.mat[i, "kurt"]   <- kurtosis(gene_logcpm)
-              feature.mat[i, "median"] <- median(gene_logcpm)
-              feature.mat[i, "IQR"]    <- IQR(gene_logcpm)
             } else if (length(gene_logcpm) == 1) {
               feature.mat[i, "mean"]   <- gene_logcpm
               feature.mat[i, "var"]    <- 0
               feature.mat[i, "skew"]   <- 0
               feature.mat[i, "kurt"]   <- 0
-              feature.mat[i, "median"] <- gene_logcpm
-              feature.mat[i, "IQR"]    <- 0
             }
           }
         }
