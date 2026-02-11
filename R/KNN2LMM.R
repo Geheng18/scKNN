@@ -98,8 +98,8 @@ KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL, input.kernel = 
       if (nrow(ann_ct) == 0) {
         # no cells of this type at all -> all zeros
         if (n.genes.region == 1) {
-          pseudobulk.mat <- matrix(0, nrow = n.donors, ncol = 6,
-                                   dimnames = list(donors, c("mean","var","skew","kurt","median","IQR")))
+          pseudobulk.mat <- matrix(0, nrow = n.donors, ncol = 4,
+                                   dimnames = list(donors, c("mean","var","skew","kurt")))
         } else {
           pseudobulk.mat <- matrix(0, nrow = n.donors, ncol = n.genes.region,
                                    dimnames = list(donors, region.genes))
