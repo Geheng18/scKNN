@@ -125,8 +125,8 @@ KNN2LMM <- function(counts.mat, annotation, gene.regions = NULL, input.kernel = 
       if (n.genes.region == 1) {
   
         gene.name <- region.genes[1]
-        n.features <- 6
-        feature.names <- c("mean", "var", "skew", "kurt", "median", "IQR")
+        n.features <- 4
+        feature.names <- c("mean", "var", "skew", "kurt")
   
         feature.mat <- matrix(0, nrow = n.donors, ncol = n.features,
                               dimnames = list(donors, feature.names))
