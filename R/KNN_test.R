@@ -113,7 +113,7 @@ KNN.overall.test <- function(pheno.donor, counts.mat, annotation, test.ind, gene
   pvalue <- davies(q = 0, lambda = eigenvalue)$Qq
   if(pvalue==0){
     pvalue <- imhof(q = 0, lambda = eigenvalue, epsabs = 1e-12, epsrel = 1e-12, limit = 1e6)$Qq
-    pvalue <- abs(pavlue)
+    pvalue <- abs(pvalue)
   }
 
   return(list(pvalue = pvalue))
@@ -251,7 +251,7 @@ KNN.ind.test <- function(pheno.donor, counts.mat, annotation, test.ind, gene.reg
   pvalue <- davies(q = theta.full[test.ind], lambda = eigenvalue)$Qq
   if(pvalue==0){
     pvalue <- imhof(q = theta.full[test.ind], lambda = eigenvalue, epsabs = 1e-12, epsrel = 1e-12, limit = 1e6)$Qq
-    pvalue <- abs(pavlue)
+    pvalue <- abs(pvalue)
   }
   return(list(pvalue = pvalue))
 }
